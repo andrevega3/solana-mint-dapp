@@ -1,4 +1,7 @@
+# Solana Token Mint App (WIP)
+
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+The goal of this application is to give developers the tooling for minting and managing tokens on Solana with it's latest updates, capabilities, and essential 3rd party tooling such as Metaplex. It is currently a work in progress.
 
 ## Getting Started
 
