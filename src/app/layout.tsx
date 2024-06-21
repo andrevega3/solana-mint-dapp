@@ -1,5 +1,6 @@
 "use client"
 
+import { WalletConnectionProvider } from "@/context/wallet";
 import Chakra from "@/lib/chakra";
 
 export default function RootLayout({
@@ -14,7 +15,9 @@ export default function RootLayout({
       </head>
       <body>
         <Chakra>
-          {children}
+          <WalletConnectionProvider>
+            {children}
+          </WalletConnectionProvider>
         </Chakra>
       </body>
     </html>
