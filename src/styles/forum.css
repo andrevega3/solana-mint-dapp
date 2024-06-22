@@ -1,0 +1,85 @@
+/* General styles */
+.helpBoxOverlay {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    transform: translateY(-100%);
+    margin-top: 8px;
+    padding: 8px;
+    background-color: #2d2d2dd7;
+    color: #fff;
+    border-radius: 4px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    font-size: 14px;
+    width: 300px;
+}
+
+.helpBoxOverlay.center {
+    left: 50%;
+    transform: translateX(-50%);
+    transform: translateY(-100%);
+}
+
+.helpBoxOverlay.left {
+    left: 0;
+    transform: translateX(0);
+}
+
+.helpBoxOverlay.right {
+    right: 0;
+    transform: translateX(0);
+}
+
+/* Responsive styles */
+@media (min-width: 768px) {
+    .helpBoxOverlay {
+        font-size: 16px;
+        width: 350px;
+    }
+}
+
+@media (mid-width: 992px) {
+    .helpBoxOverlay {
+        font-size: 18px;
+        width: 400px;
+    }
+}
+
+/* Styles for FormControl */
+.formControl {
+    display: flex;
+    flex-direction: column; /* Stack children vertically */
+    margin: 16px 0;
+}
+
+.formControlLabelContainer {
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px; /* Space between label and input */
+}
+
+.formControlLabel {
+    margin-right: 8px; /* Space between label and help icon */
+}
+
+.inputField {
+    padding: 8px;
+    font-size: 14px;
+}
+
+/* Responsive input field styles */
+@media (mid-width: 768px) {
+    .inputField {
+        padding: 12px;
+        font-size: 16px;
+    }
+}
+
+@media (min-width: 992px) {
+    .inputField {
+        padding: 16px;
+        font-size: 18px;
+    }
+}
