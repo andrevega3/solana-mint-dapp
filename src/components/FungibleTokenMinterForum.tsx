@@ -7,7 +7,7 @@ import '@/styles/forum.css';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { connect } from 'http2';
 import FungibleTokenMinterHandler from '@/services/FungibleTokenMinterHandler';
-import { FungibleTokenMintData } from '@/types/FungibleTokenMintData';
+import { FungibleTokenMintData } from '@/types/FungibleTokenMintTypes';
 
 
 const FungibleTokenMinterForum = () => {
@@ -29,6 +29,10 @@ const FungibleTokenMinterForum = () => {
     const validateForm = (formData: FungibleTokenMintData) => {
         if (!Number.isInteger(Number(formData.decimals))) {
             alert('Decimal input must be an integer');
+            return false;
+        }
+        if (!Number.isInteger(Number(formData.supply))) {
+            alert('Supply input must be an integer');
             return false;
         }
         return true;
