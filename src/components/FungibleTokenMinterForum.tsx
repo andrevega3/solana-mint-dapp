@@ -9,9 +9,9 @@ import { connect } from 'http2';
 import FungibleTokenMinterHandler from '@/handlers/FungibleTokenMinterHandler';
 import { FungibleTokenMintData } from '@/types/FungibleTokenMintTypes';
 import { useDrive } from '@/context/drive';
-import { clusterApiUrl, Connection } from '@solana/web3.js';
+import { Connection } from '@solana/web3.js';
 
-const connection = new Connection(clusterApiUrl('mainnet-beta'), "confirmed");
+const connection = new Connection(process.env.NEXT_PUBLIC_RPC_ENDPOINT!, "confirmed");
 
 const FungibleTokenMinterForum = () => {
     const [name, setName] = useState('');
@@ -24,6 +24,9 @@ const FungibleTokenMinterForum = () => {
     const [supply, setSupply] = useState('');
     const [decimals, setDecimals] = useState('');
     const [imageFile, setImageFile] = useState<File | null>(null);
+
+    // TODO: Need to replace setMetaDataJSON input with direct despcription 
+    //       and any other relevant field input like website or twitter link.
     
     const wallet = useWallet();
     const drive = useDrive(connection);
