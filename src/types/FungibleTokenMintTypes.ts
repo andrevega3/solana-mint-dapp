@@ -2,11 +2,15 @@ import { Keypair, PublicKey, SignatureResult } from "@solana/web3.js";
 
 export interface FungibleTokenMintData {
     name: string;
-    imageUri: string;
     symbol: string;
-    metadataJsonUri: string;
+    description: string;
     supply: string;
     decimals: string;
+    website?: string;
+    twitter?: string;
+    telegram?: string;
+    discord?: string;
+    imageFile: File;
   }
 
 export interface FungibleTokenCreateResult {

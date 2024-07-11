@@ -47,7 +47,9 @@ import { WalletNotConnectedError } from '@solana/wallet-adapter-base';
 export async function createTokenMintAndMintSupply(
     connection: Connection,
     wallet: WalletContextState,
-    formData: FungibleTokenMintData
+    formData: FungibleTokenMintData,
+    imageUri: string,
+    jsonUri: string,
 ): Promise<FungibleTokenCreateAndMintResult | null> {
 
     let fungibleTokenCreateResult: FungibleTokenCreateAndMintResult | null = null;
@@ -69,8 +71,8 @@ export async function createTokenMintAndMintSupply(
             mint: mint,
             name: formData.name,
             symbol: formData.symbol,
-            uri: formData.metadataJsonUri,
-            additionalMetadata: [['image', formData.imageUri]]
+            uri: jsonUri,
+            additionalMetadata: [['image', imageUri]]
         };
 
         const metadataExtension = TYPE_SIZE + LENGTH_SIZE;
@@ -277,7 +279,7 @@ export async function mintTokens(
 
         console.log(
             '\nMint Tokens:',
-            `https://solana.fm/tx/${confirmedSignature.value}?cluster=devnet-solana`
+            `https://solana.fm/tx/${confirmedSignature.context}?cluster=devnet-solana`
         );
 
         signatureResult = confirmedSignature.value

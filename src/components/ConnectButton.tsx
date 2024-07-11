@@ -1,10 +1,17 @@
 "use client";
-
-import { Button } from '@chakra-ui/react'
+import React, { useEffect, useState } from 'react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import styles from './ConnectButton.module.css'
-const ConnectButton = () => (
-    <WalletMultiButton/>
-);
+
+const ConnectButton: React.FC = () => {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) return null;
+
+    return <WalletMultiButton />;
+};
 
 export default ConnectButton

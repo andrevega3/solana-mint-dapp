@@ -18,7 +18,8 @@ interface Props {
 
 export const WalletConnectionProvider: FC<Props> = ({ children }) => {
     // The network can be set to 'devnet', 'testnet', or 'mainnet-beta'.
-    const network = WalletAdapterNetwork.Devnet;
+    // const network = WalletAdapterNetwork.Devnet;
+    const network = WalletAdapterNetwork.Mainnet;
 
     const endpoint = useMemo(() => clusterApiUrl(network), [network]);
 
