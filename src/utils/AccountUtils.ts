@@ -43,6 +43,8 @@ import {
 } from '@/types/FungibleTokenMintTypes';
 import { WalletContextState } from '@solana/wallet-adapter-react';
 import { WalletNotConnectedError } from '@solana/wallet-adapter-base';
+import { web3 } from "@coral-xyz/anchor";
+import { getSimulationUnits } from '@/lib/shdw-sdk/utils/helpers';
 
 export async function createTokenMintAndMintSupply(
     connection: Connection,
@@ -50,7 +52,8 @@ export async function createTokenMintAndMintSupply(
     formData: FungibleTokenMintData,
     imageUri: string,
     jsonUri: string,
-): Promise<FungibleTokenCreateAndMintResult | null> {
+    priorityFee: number = 100000
+): Promise<Transaction | null> {
 
     let fungibleTokenCreateResult: FungibleTokenCreateAndMintResult | null = null;
 
@@ -82,6 +85,11 @@ export async function createTokenMintAndMintSupply(
         const lamports = await connection.getMinimumBalanceForRentExemption(
             mintLen + metadataExtension + metadataLen
         );
+
+
+        const computePriceIx = web3.ComputeBudgetProgram.setComputeUnitPrice({
+            microLamports: Math.ceil(priorityFee),
+        });
 
         const createAccountInstruction = SystemProgram.createAccount({
             fromPubkey: wallet.publicKey as PublicKey,
@@ -151,6 +159,7 @@ export async function createTokenMintAndMintSupply(
         );
 
         const transaction = new Transaction().add(
+            computePriceIx,
             createAccountInstruction,
             initializeMetadataPointerInstruction,
             initializeMintInstruction,
@@ -165,198 +174,29 @@ export async function createTokenMintAndMintSupply(
             value: { blockhash, lastValidBlockHeight}
         } = await connection.getLatestBlockhashAndContext();
 
-        const signature = await sendTransaction(transaction, connection,
-            {
-                minContextSlot,
-                signers: [mintKeypair]
-            }
-        );
-
-        const confirmedSignature = await connection.confirmTransaction({
-            blockhash,
-            lastValidBlockHeight,
-            signature
-        });
-
-        // TODO: Figure out how to get signature string from SignatureResult
-        console.log(
-            '\nCreateMintAccount:',
-            `https://solana.fm/tx/${confirmedSignature.value}?cluster=devnet-solana`
-        );
-
-        const mintInfo = await getMint(
+        const [units, blockHashInfo] = await Promise.all([
+            getSimulationUnits(
+                connection,
+                [computePriceIx, ...transaction.instructions],
+                publicKey
+            ),
             connection,
-            mint,
-            'confirmed',
-            TOKEN_2022_PROGRAM_ID
-        );
+        ]);
 
-        const metaDataPointer = getMetadataPointerState(mintInfo);
-        console.log(
-            '\nMetadata Pointer:',
-            JSON.stringify(metaDataPointer, null, 2)
-        );
-
-        const onChainMetadata = await getTokenMetadata(
-            connection,
-            mint
-        );
-        console.log(
-            '\nMetadata:',
-            JSON.stringify(onChainMetadata, null, 2)
-        );
-
-        fungibleTokenCreateResult = {
-            signature: confirmedSignature.value,
-            mintKeyPair: mintKeypair,
-            mint: mint,
-            updateAuthority: updateAuthority
+        if (units !== undefined) {
+            transaction.instructions.unshift(web3.ComputeBudgetProgram.setComputeUnitLimit({ units }));
         }
 
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = publicKey;
+
+        transaction.sign(mintKeypair)
+
+        return transaction;
+
     } catch (error) {
-        console.log(`Create Token Mint Failed: ${error}`);
+        console.log(`Create Token Mint Transaction Failed: ${error}`);
     }
 
     return fungibleTokenCreateResult;
-}
-
-export async function mintTokens(
-    connection: Connection,
-    wallet: WalletContextState,
-    formData: FungibleTokenMintData,
-    payer: PublicKey,
-    mint: PublicKey,
-    mintAuthority: PublicKey,
-    recipient: PublicKey,
-): Promise<SignatureResult | null> {
-    let signatureResult: SignatureResult | null = null
-
-    try{
-        const { sendTransaction } = wallet;
-
-        const supply = parseInt(formData.supply);
-        const decimals = parseInt(formData.decimals);
-
-        const recipientTokenAccount = await getOrCreateAssociatedTokenAccount(
-            connection,
-            wallet,
-            payer,
-            mint,
-            recipient
-        );
-
-        const mintToInstruction = createMintToInstruction(
-            mint,
-            recipientTokenAccount.address,
-            mintAuthority,
-            BigInt(supply *(10 ** decimals)),
-            [],
-            TOKEN_2022_PROGRAM_ID
-        );
-
-        const transaction = new Transaction().add(
-            mintToInstruction
-        );
-
-        const {
-            context: { slot: minContextSlot },
-            value: { blockhash, lastValidBlockHeight }
-        } = await connection.getLatestBlockhashAndContext();
-
-        const signature = await sendTransaction(transaction, connection,
-            {
-                minContextSlot
-            }
-        );
-
-        const confirmedSignature = await connection.confirmTransaction(
-            {
-                blockhash,
-                lastValidBlockHeight,
-                signature
-            }
-        );
-
-        console.log(
-            '\nMint Tokens:',
-            `https://solana.fm/tx/${confirmedSignature.context}?cluster=devnet-solana`
-        );
-
-        signatureResult = confirmedSignature.value
-    } catch (error) {
-
-    }
-
-    return signatureResult;
-}
-
-export async function getOrCreateAssociatedTokenAccount(
-    connection: Connection,
-    wallet: WalletContextState,
-    publicKey: PublicKey,
-    mint: PublicKey,
-    owner: PublicKey,
-    allowOwnerOffCurve = false,
-    commitment?: Commitment,
-    confirmOptions?: ConfirmOptions,
-    programId = TOKEN_PROGRAM_ID,
-    associatedTokenProgramId = ASSOCIATED_TOKEN_PROGRAM_ID
-): Promise<Account> {
-    const associatedToken = getAssociatedTokenAddressSync(
-        mint,
-        owner,
-        allowOwnerOffCurve,
-        programId,
-        associatedTokenProgramId
-    );
-
-    // This is the optimal logic, considering TX fee, client-side computation, RPC roundtrips and guaranteed idempotent.
-    // Sadly we can't do this atomically.
-    let account: Account;
-    try {
-        account = await getAccount(connection, associatedToken, commitment, programId);
-    } catch (error: unknown) {
-        // TokenAccountNotFoundError can be possible if the associated address has already received some lamports,
-        // becoming a system account. Assuming program derived addressing is safe, this is the only case for the
-        // TokenInvalidAccountOwnerError in this code path.
-        if (error instanceof TokenAccountNotFoundError || error instanceof TokenInvalidAccountOwnerError) {
-            // As this isn't atomic, it's possible others can create associated accounts meanwhile.
-            try {
-                const { sendTransaction} = wallet;
-
-                const transaction = new Transaction().add(
-                    createAssociatedTokenAccountInstruction(
-                        publicKey,
-                        associatedToken,
-                        owner,
-                        mint,
-                        programId,
-                        associatedTokenProgramId
-                    )
-                );
-
-                const {
-                    context: { slot: minContextSlot },
-                    value: { blockhash, lastValidBlockHeight }
-                } = await connection.getLatestBlockhashAndContext();
-                const signature = await sendTransaction(transaction, connection, { minContextSlot,
-                    signers: []
-                 });
-                 const confirmedSignature = await connection.confirmTransaction({ blockhash, lastValidBlockHeight, signature });
-            } catch (error: unknown) {
-                // Ignore all errors; for now there is no API-compatible way to selectively ignore the expected
-                // instruction error if the associated account exists already.
-            }
-
-            // Now this should always succeed
-            account = await getAccount(connection, associatedToken, commitment, programId);
-        } else {
-            throw error;
-        }
-    }
-
-    if (!account.mint.equals(mint)) throw new TokenInvalidMintError();
-    if (!account.owner.equals(owner)) throw new TokenInvalidOwnerError();
-
-    return account;
 }

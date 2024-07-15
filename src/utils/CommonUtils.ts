@@ -18,34 +18,3 @@ export function formatBytes(bytes: number): string {
     
     return result + sizes[i];
 }
-
-export function humanSizeToBytes(input: string): number | boolean {
-    const UNITS = ["kb", "mb", "gb"];
-    let chunk_size = 0;
-    let humanReadable = input.toLowerCase();
-    let inputNumber = Number(humanReadable.slice(0, humanReadable.length - 2));
-    let inputDescriptor = humanReadable.slice(
-        humanReadable.length - 2,
-        humanReadable.length
-    );
-    if (!UNITS.includes(inputDescriptor) || !inputNumber) {
-        return false;
-    }
-
-    switch (inputDescriptor) {
-        case "kb":
-            chunk_size = 1_024;
-            break;
-        case "mb":
-            chunk_size = 1_048_576;
-            break;
-        case "gb":
-            chunk_size = 1_073_741_824;
-            break;
-
-        default:
-            break;
-    }
-
-    return Math.ceil(inputNumber * chunk_size);
-}

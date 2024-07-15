@@ -5,7 +5,6 @@ import { Box, Button, Input } from '@chakra-ui/react'
 import TextInputWithHelp from './TextInputWithHelp';
 import '@/styles/forum.css';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { connect } from 'http2';
 import FungibleTokenMinterHandler from '@/handlers/FungibleTokenMinterHandler';
 import { FungibleTokenMintData } from '@/types/FungibleTokenMintTypes';
 import { useDrive } from '@/context/drive';
