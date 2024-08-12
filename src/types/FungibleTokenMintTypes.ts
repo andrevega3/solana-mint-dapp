@@ -11,6 +11,7 @@ export interface FungibleTokenMintData {
     telegram?: string;
     discord?: string;
     imageFile: File;
+    authority?: string;
   }
 
 export interface FungibleTokenCreateResult {

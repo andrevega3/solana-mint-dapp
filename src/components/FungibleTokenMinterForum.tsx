@@ -9,6 +9,10 @@ import FungibleTokenMinterHandler from '@/handlers/FungibleTokenMinterHandler';
 import { FungibleTokenMintData } from '@/types/FungibleTokenMintTypes';
 import { useDrive } from '@/context/drive';
 import { Connection } from '@solana/web3.js';
+import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
+import { mplTokenMetadata } from '@metaplex-foundation/mpl-token-metadata';
+import { walletAdapterIdentity } from '@metaplex-foundation/umi-signer-wallet-adapters'
+import { irysUploader } from '@metaplex-foundation/umi-uploader-irys';
 
 const connection = new Connection(process.env.NEXT_PUBLIC_RPC_ENDPOINT!, "confirmed");
 
@@ -23,12 +27,17 @@ const FungibleTokenMinterForum = () => {
     const [supply, setSupply] = useState('');
     const [decimals, setDecimals] = useState('');
     const [imageFile, setImageFile] = useState<File | null>(null);
+    const [authority, setAuthority] = useState('');
 
     // TODO: Need to replace setMetaDataJSON input with direct despcription 
     //       and any other relevant field input like website or twitter link.
     
     const wallet = useWallet();
     const drive = useDrive(connection);
+    const umi = createUmi(process.env.NEXT_PUBLIC_RPC_ENDPOINT!)
+    .use(mplTokenMetadata())
+    .use(irysUploader())
+    .use(walletAdapterIdentity(wallet));
 
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
@@ -63,7 +72,8 @@ const FungibleTokenMinterForum = () => {
             twitter,
             telegram,
             discord,
-            imageFile: imageFile as File 
+            imageFile: imageFile as File,
+            authority 
         };
         // const testFormData: FungibleTokenMintData = {
         //     name: "TestMyMint",
@@ -74,7 +84,7 @@ const FungibleTokenMinterForum = () => {
         //     decimals: "2"
         // }
         if (validateForm(formData)) {
-            const fungibleTokenMinterHanlder = new FungibleTokenMinterHandler(connection, wallet, drive);
+            const fungibleTokenMinterHanlder = new FungibleTokenMinterHandler(connection, wallet, drive, umi);
             await fungibleTokenMinterHanlder.handleSubmit(formData);
         }
     }
@@ -115,6 +125,12 @@ const FungibleTokenMinterForum = () => {
                 <label>Upload Image:</label>
                 <Input type="file" accept="image/*" onChange={handleFileChange} required />
             </Box>
+            <TextInputWithHelp
+                title="Authority"
+                helpText="The address of the wallet that has control over minting or freezing the token supply  as well as or updating the metadata."
+                value={authority}
+                setValue={setAuthority}
+            />
             <TextInputWithHelp
                 title="Website"
                 helpText="The official website of the token or the project behind it."

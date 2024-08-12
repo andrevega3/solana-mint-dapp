@@ -19,7 +19,11 @@ import {
     getTokenMetadata,
     TYPE_SIZE,
     LENGTH_SIZE,
-    createMintToInstruction 
+    createMintToInstruction, 
+    setAuthority,
+    AuthorityType,
+    setAuthorityInstructionData,
+    createSetAuthorityInstruction
 } from '@solana/spl-token';
 import { 
     Transaction,
@@ -33,6 +37,7 @@ import {
 } from '@solana/web3.js';
 import {
     createInitializeInstruction,
+    createUpdateAuthorityInstruction,
     createUpdateFieldInstruction,
     pack,
     TokenMetadata
@@ -45,6 +50,7 @@ import { WalletContextState } from '@solana/wallet-adapter-react';
 import { WalletNotConnectedError } from '@solana/wallet-adapter-base';
 import { web3 } from "@coral-xyz/anchor";
 import { getSimulationUnits } from '@/lib/shdw-sdk/utils/helpers';
+import { getUpdateAsUpdateAuthorityV2InstructionDataSerializer, updateAsUpdateAuthorityV2 } from '@metaplex-foundation/mpl-token-metadata';
 
 export async function createTokenMintAndMintSupply(
     connection: Connection,
@@ -52,8 +58,9 @@ export async function createTokenMintAndMintSupply(
     formData: FungibleTokenMintData,
     imageUri: string,
     jsonUri: string,
-    priorityFee: number = 100000
-): Promise<Transaction | null> {
+    authority: PublicKey,
+    priorityFee: number = 10000
+): Promise<FungibleTokenCreateAndMintResult | null> {
 
     let fungibleTokenCreateResult: FungibleTokenCreateAndMintResult | null = null;
 
@@ -111,7 +118,7 @@ export async function createTokenMintAndMintSupply(
             mint,
             decimals,
             mintAuthority,
-            null,
+            publicKey,
             TOKEN_2022_PROGRAM_ID
         );
 
@@ -158,6 +165,33 @@ export async function createTokenMintAndMintSupply(
             TOKEN_2022_PROGRAM_ID
         );
 
+        const setMintAuthorityInstruction = createSetAuthorityInstruction(
+            mint,
+            publicKey,
+            AuthorityType.MintTokens,
+            authority,
+            undefined,
+            TOKEN_2022_PROGRAM_ID
+        )
+
+        const setUpdateAuthorityInstruction = createUpdateAuthorityInstruction(
+            {
+                programId: TOKEN_2022_PROGRAM_ID,
+                metadata: mint,
+                oldAuthority: publicKey,
+                newAuthority: authority
+            }
+        )
+
+        const setFreezeAuthorityInstruction = createSetAuthorityInstruction(
+            mint,
+            publicKey,
+            AuthorityType.FreezeAccount,
+            authority,
+            undefined,
+            TOKEN_2022_PROGRAM_ID
+        )
+
         const transaction = new Transaction().add(
             computePriceIx,
             createAccountInstruction,
@@ -166,7 +200,10 @@ export async function createTokenMintAndMintSupply(
             initializeMetadataInstruction,
             updateFieldInstruction,
             assocaitedTokenAccountInstruction,
-            mintToInstruction
+            mintToInstruction,
+            setMintAuthorityInstruction,
+            setFreezeAuthorityInstruction,
+            setUpdateAuthorityInstruction,
         );
 
         const {
@@ -174,25 +211,62 @@ export async function createTokenMintAndMintSupply(
             value: { blockhash, lastValidBlockHeight}
         } = await connection.getLatestBlockhashAndContext();
 
-        const [units, blockHashInfo] = await Promise.all([
-            getSimulationUnits(
-                connection,
-                [computePriceIx, ...transaction.instructions],
-                publicKey
-            ),
-            connection,
-        ]);
+        const signature = await sendTransaction(transaction, connection,
+            {
+                minContextSlot,
+                signers: [mintKeypair]
+            }
+        );
 
-        if (units !== undefined) {
-            transaction.instructions.unshift(web3.ComputeBudgetProgram.setComputeUnitLimit({ units }));
+        const confirmedSignature = await connection.confirmTransaction({
+            blockhash,
+            lastValidBlockHeight,
+            signature
+        });
+
+        // TODO: Figure out how to get signature string from SignatureResult
+        console.log(
+            '\nCreateMintAccount:',
+            `https://solana.fm/tx/${confirmedSignature.value}?cluster=devnet-solana`
+        );
+
+        const mintInfo = await getMint(
+            connection,
+            mint,
+            'confirmed',
+            TOKEN_2022_PROGRAM_ID
+        );
+
+        const metaDataPointer = getMetadataPointerState(mintInfo);
+        console.log(
+            '\nMetadata Pointer:',
+            JSON.stringify(metaDataPointer, null, 2)
+        );
+
+        const onChainMetadata = await getTokenMetadata(
+            connection,
+            mint
+        );
+        console.log(
+            '\nMetadata:',
+            JSON.stringify(onChainMetadata, null, 2)
+        );
+
+        fungibleTokenCreateResult = {
+            signature: confirmedSignature.value,
+            mintKeyPair: mintKeypair,
+            mint: mint,
+            updateAuthority: updateAuthority
         }
 
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = publicKey;
-
-        transaction.sign(mintKeypair)
-
-        return transaction;
+        // const setAuthoritySignature = await setAuthority(
+        //     connection,
+        //     wallet,
+        //     mint,
+        //     wallet.publicKey,
+        //     AuthorityType.MintTokens,
+        //     new PublicKey("5iyGddeWDy8u47horo7AEyJwWWcLYJ54Bp92HHyw4MkE")
+        // )
 
     } catch (error) {
         console.log(`Create Token Mint Transaction Failed: ${error}`);
